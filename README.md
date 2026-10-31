@@ -41,7 +41,7 @@
 > [!IMPORTANT]
 > The first time you open Shortify, it asks you to create your account. That page needs a setup code, so nobody else who finds the server first can claim it. The code is printed in the container logs.
 
-The recommended way to run Shortify is the container image published to `ghcr.io`, built for Intel/AMD and ARM. There are no npm dependencies. The only addition to the Node image is `cloudflared`, pinned by version and checksum in the `Dockerfile`.
+The recommended way to run Shortify is the published container image, built for Intel/AMD and ARM. It's on `ghcr.io` as used below, and on Docker Hub as `techiejack/shortify`. There are no npm dependencies. The only addition to the Node image is `cloudflared`, pinned by version and checksum in the `Dockerfile`.
 
 ### Docker Compose
 

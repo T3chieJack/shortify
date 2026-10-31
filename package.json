@@ -1,6 +1,6 @@
 {
   "name": "shortify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A self-hosted link shortener in one Docker container.",
   "private": true,
   "main": "src/server.js",

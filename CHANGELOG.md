@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- The container image is now also published to Docker Hub as `techiejack/shortify`
+
 ## 1.0.0
 
 The first release.
