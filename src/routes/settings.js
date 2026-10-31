@@ -6,16 +6,23 @@ const https = require('node:https');
 const net = require('node:net');
 const path = require('node:path');
 const { pipeline } = require('node:stream/promises');
+const qr = require('../qr');
 const tunnel = require('../tunnel');
-const { clientAddress, csrfToken, csrfValid, hashPassword, hashToken, isLoggedIn, listTrustedProxies, loginTries, passwordMatches, readCookie, requestIsHttps, sessionUser, setTrustedProxies } = require('../auth');
-const { CONNECTION_LABELS, DATA_DIR, DAY_SECONDS, DOMAIN_CHECK_TIMEOUT_MS, MAX_API_KEY_NAME_LENGTH, MIN_PASSWORD_LENGTH, PAGE_EXPIRED, PORT, RETENTION_LABELS, SESSION_COOKIE, SETTINGS_NOTICES } = require('../config');
-const { INSTANCE_ID, TLS_CERT_PATH, TLS_KEY_PATH, analytics, countDomainLinks, db, defaultDomainId, deleteApiKey, deleteDomain, deleteOtherSessions, findDomain, findDomainByName, getSetting, insertApiKey, insertDomain, listApiKeys, listDomains, recordDomainCheck, removeSetting, storageTotals, updatePassword, writeSetting } = require('../db');
+const { clientAddress, csrfToken, csrfValid, hashPassword, hashToken, isLoggedIn, listTrustedProxies, loginTries, passwordMatches, readCookie, requestIsHttps, sessionUser, setTrustedProxies, twoFactorTries } = require('../auth');
+const { APP_VERSION, CONNECTION_LABELS, DATA_DIR, DAY_SECONDS, DOMAIN_CHECK_TIMEOUT_MS, MAX_API_KEY_NAME_LENGTH, MIN_PASSWORD_LENGTH, PAGE_EXPIRED, PORT, RETENTION_LABELS, SESSION_COOKIE, SETTINGS_NOTICES, UPDATE_SCHEDULE_LABELS } = require('../config');
+const { INSTANCE_ID, TLS_CERT_PATH, TLS_KEY_PATH, analytics, countDomainLinks, countRecoveryCodes, db, defaultDomainId, deleteApiKey, deleteDomain, deleteOtherSessions, disableTwoFactor, enableTwoFactor, findDomain, findDomainByName, getSetting, insertApiKey, insertDomain, listApiKeys, listDomains, recordDomainCheck, removeSetting, replaceRecoveryCodes, storageTotals, updatePassword, writeSetting } = require('../db');
 const { dayString, detailRow, formatBytes, formatLongDate, nowSeconds, optionsHtml, plural } = require('../format');
 const { escapeHtml, fieldAria, fieldError, readForm, redirect, sendHtml, sendText } = require('../http');
 const { parseCertificate, readCertificate, startHttps, stopHttps } = require('../https-server');
 const { renderSidebar } = require('../layout');
+const { enrollments, forgetPendingLogins, generateRecoveryCodes, generateSecret, hashRecoveryCode, matchingStep, otpauthUrl, secondFactorMatches } = require('../twofactor');
+const { currentSchedule, readStatus, requestAction } = require('../updates');
 const { timeZoneIsValid } = require('./analytics');
 const { SETTINGS_PAGE, renderTemplate } = require('../views');
+
+const TOO_MANY_TRIES = 'Too many tries. Wait 15 minutes, then try again.';
+
+const WRONG_CODE = 'That code isn\'t right. If you just used this code, wait for the next one.';
 
 function domainStatusHtml(domain) {
   if (!domain.checked_at) return '<span class="item-status">Not checked yet</span>';
@@ -214,9 +221,134 @@ function confirmClearStatsHtml(csrf) {
       </section>`;
 }
 
-async function renderSettings(req, res, status, { notice, confirmDomain, confirmClearStats, hostname = '', connection = tunnel.isInstalled() ? 'tunnel' : 'direct', https = true, proxies, timeZone, newKey, errors = {} } = {}) {
+function updatesPanelHtml(csrf) {
+  const version = detailRow('This version', escapeHtml(APP_VERSION));
+  const status = readStatus();
+  if (!status) {
+    return `<dl class="details">
+              ${version}
+            </dl>
+            <p class="card-intro">To update from here, add the optional updater container to your Compose file. The README's Updates section shows how. Until then, run <code>docker compose pull</code> and <code>docker compose up -d</code> on the server.</p>`;
+  }
+  const working = status.state === 'updating' || status.state === 'checking';
+  const failed = status.state === 'failed';
+  const failure = failed ? `<p class="field-error">${escapeHtml(status.message)}</p>` : '';
+  let summary = 'Not checked yet';
+  if (failed) summary = 'The last attempt failed, so nothing changed';
+  else if (status.state === 'updating') summary = 'Updating now';
+  else if (status.state === 'checking') summary = 'Checking now';
+  else if (status.updateAvailable) summary = status.latestVersion ? `Version ${escapeHtml(status.latestVersion)} is available` : 'A new version is available';
+  else if (status.checkedAt) summary = 'Up to date';
+  const checked = status.checkedAt ? detailRow('Last checked', escapeHtml(formatLongDate(new Date(status.checkedAt)))) : '';
+  const { schedule, hour } = currentSchedule();
+  const hours = Object.fromEntries(Array.from({ length: 24 }, (_, value) => [value, `${String(value).padStart(2, '0')}:00`]));
+  const actions = working ? '' : `<form class="confirm-actions" method="post">
+              <input type="hidden" name="csrf_token" value="${csrf}">
+              <button class="button button-small${status.updateAvailable ? '' : ' button-quiet'}" type="submit" formaction="/settings/updates/run">Update now</button>
+              <button class="button-text" type="submit" formaction="/settings/updates/check">Check for updates</button>
+            </form>`;
+  return `<p class="status-line ${failed ? 'status-line-bad' : status.updateAvailable ? 'status-line-good' : 'status-line-off'}">${summary}</p>
+            ${failure}
+            <dl class="details">
+              ${version}
+              ${checked}
+            </dl>
+            ${actions}
+            <form class="backup-form settings-form" method="post" action="/settings/updates/schedule">
+              <input type="hidden" name="csrf_token" value="${csrf}">
+              <div class="field">
+                <label for="update-schedule">Update automatically</label>
+                <select id="update-schedule" name="schedule">${optionsHtml(UPDATE_SCHEDULE_LABELS, schedule)}</select>
+              </div>
+              <div class="field">
+                <label for="update-hour">At</label>
+                <select id="update-hour" name="hour">${optionsHtml(hours, String(hour))}</select>
+                <p class="field-hint">In the ${escapeHtml(analytics.timeZone())} time zone, which you can change under Advanced mode. Shortify is offline for a few seconds while it restarts.</p>
+              </div>
+              <button class="button button-small button-quiet" type="submit">Save schedule</button>
+            </form>`;
+}
+
+function twoFactorPanelHtml(csrf, user, errors) {
+  if (!user.totp_secret) {
+    return `<p class="status-line status-line-off">Off</p>
+            <p class="card-intro">Ask for a code from an authenticator app as well as your password when you log in.</p>
+            <form method="post" action="/settings/2fa/start#two-factor">
+              <input type="hidden" name="csrf_token" value="${csrf}">
+              <div class="field">
+                <label for="two-factor-password">Your password</label>
+                <input id="two-factor-password" name="password" type="password" autocomplete="current-password" ${fieldAria('two-factor-password-error', errors.twoFactorPassword)}>
+                ${fieldError('two-factor-password-error', errors.twoFactorPassword)}
+              </div>
+              <button class="button button-small" type="submit">Set up two-factor login</button>
+            </form>`;
+  }
+  const { count } = countRecoveryCodes.get(user.id);
+  return `<p class="status-line status-line-good">On</p>
+            <dl class="details">
+              ${detailRow('Turned on', escapeHtml(formatLongDate(new Date(user.totp_enabled_at * 1000))))}
+              ${detailRow('Recovery codes left', String(count))}
+            </dl>
+            <form class="backup-form" method="post">
+              <input type="hidden" name="csrf_token" value="${csrf}">
+              <div class="field">
+                <label for="two-factor-password">Your password</label>
+                <input id="two-factor-password" name="password" type="password" autocomplete="current-password" ${fieldAria('two-factor-password-error', errors.twoFactorPassword)}>
+                ${fieldError('two-factor-password-error', errors.twoFactorPassword)}
+              </div>
+              <div class="field">
+                <label for="two-factor-code">Code from your app, or a recovery code</label>
+                <input id="two-factor-code" name="code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24" ${fieldAria('two-factor-code-error', errors.twoFactorCode)}>
+                ${fieldError('two-factor-code-error', errors.twoFactorCode)}
+              </div>
+              <div class="confirm-actions">
+                <button class="button button-small button-quiet" type="submit" formaction="/settings/2fa/recovery#two-factor">Get new recovery codes</button>
+                <button class="button-text button-text-danger" type="submit" formaction="/settings/2fa/disable#two-factor">Turn off</button>
+              </div>
+            </form>`;
+}
+
+function twoFactorSetupHtml(csrf, user, secret, codeError) {
+  return `<section class="card confirm-card two-factor-card" id="two-factor">
+        <h2>Set up two-factor login</h2>
+        <p>Scan this with an authenticator app, like Google Authenticator, Microsoft Authenticator or Aegis.</p>
+        <div class="qr-image" role="img" aria-label="QR code for your authenticator app">${qr.toSvg(otpauthUrl(user.username, secret))}</div>
+        <p class="two-factor-key">Can't scan it? Enter this key in your app:<br><code>${secret.match(/.{1,4}/g).join(' ')}</code></p>
+        <form method="post" action="/settings/2fa/enable#two-factor">
+          <input type="hidden" name="csrf_token" value="${csrf}">
+          <div class="field">
+            <label for="two-factor-code">6-digit code from your app</label>
+            <input id="two-factor-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" autofocus ${fieldAria('two-factor-code-error', codeError)}>
+            ${fieldError('two-factor-code-error', codeError)}
+          </div>
+          <div class="confirm-actions">
+            <button class="button button-small" type="submit">Turn on two-factor login</button>
+            <a class="button-text" href="/settings#two-factor">Cancel</a>
+          </div>
+        </form>
+      </section>`;
+}
+
+function recoveryCodesHtml(codes, justEnabled) {
+  return `<section class="card confirm-card two-factor-card" id="two-factor">
+        <h2>Save your recovery codes</h2>
+        <p role="status">${justEnabled ? 'Two-factor login is on, and other devices have been logged out. ' : 'Your old recovery codes no longer work. '}Each code below gets you in once if you lose your authenticator app. They won't be shown again, so keep them somewhere safe, like a password manager.</p>
+        <ul class="recovery-codes">
+          ${codes.map((code) => `<li><code>${code}</code></li>`).join('\n          ')}
+        </ul>
+        <div class="confirm-actions">
+          <a class="button button-small" href="/settings#two-factor">I've saved them</a>
+        </div>
+      </section>`;
+}
+
+async function renderSettings(req, res, status, { notice, confirmDomain, confirmClearStats, hostname = '', connection = tunnel.isInstalled() ? 'tunnel' : 'direct', https = true, proxies, timeZone, newKey, twoFactorSecret, recoveryCodes, justEnabled = false, errors = {} } = {}) {
   const csrf = csrfToken(req, res);
+  const user = sessionUser(req);
+  const twoFactorView = (twoFactorSecret && twoFactorSetupHtml(csrf, user, twoFactorSecret, errors.twoFactorCode)) || (recoveryCodes && recoveryCodesHtml(recoveryCodes, justEnabled));
   const values = {
+    two_factor_panel: twoFactorPanelHtml(csrf, user, errors),
+    updates_panel: updatesPanelHtml(csrf),
     api_section: apiSectionHtml(req, csrf, newKey, errors.keyName),
     advanced_checked: analytics.isEnabled() ? 'checked' : '',
     retention_options: optionsHtml(RETENTION_LABELS, String(analytics.retentionDays())),
@@ -228,10 +360,10 @@ async function renderSettings(req, res, status, { notice, confirmDomain, confirm
     storage: await storageHtml(),
     sidebar: renderSidebar(req, csrf, 'settings'),
     csrf_token: csrf,
-    username: escapeHtml(sessionUser(req).username),
+    username: escapeHtml(user.username),
     notice: Object.hasOwn(SETTINGS_NOTICES, notice ?? '') ? `<p class="notice" role="status">${SETTINGS_NOTICES[notice]}</p>` : '',
-    confirm: (confirmDomain && confirmRemoveDomainHtml(confirmDomain, csrf)) || (confirmClearStats && confirmClearStatsHtml(csrf)) || '',
-    page_hidden: confirmDomain || confirmClearStats ? 'hidden' : '',
+    confirm: twoFactorView || (confirmDomain && confirmRemoveDomainHtml(confirmDomain, csrf)) || (confirmClearStats && confirmClearStatsHtml(csrf)) || '',
+    page_hidden: twoFactorView || confirmDomain || confirmClearStats ? 'hidden' : '',
     domain_list: domainListHtml(csrf),
     hostname: escapeHtml(hostname),
     connection_options: optionsHtml(CONNECTION_LABELS, connection),
@@ -295,7 +427,100 @@ async function checkDomain(domain) {
   }
 }
 
+function sessionKey(req) {
+  return hashToken(readCookie(req, SESSION_COOKIE));
+}
+
+async function refuseTwoFactorChange(req, user, form) {
+  const address = clientAddress(req);
+  if (!loginTries.reserve(address)) return { status: 429, errors: { twoFactorPassword: TOO_MANY_TRIES } };
+  if (!await passwordMatches(form.get('password') || '', user.password_hash)) {
+    return { status: 400, errors: { twoFactorPassword: 'That isn\'t your password.' } };
+  }
+  loginTries.clear(address);
+  if (!twoFactorTries.reserve(user.id)) return { status: 429, errors: { twoFactorCode: TOO_MANY_TRIES } };
+  if (!secondFactorMatches(user, form.get('code') || '')) return { status: 400, errors: { twoFactorCode: WRONG_CODE } };
+  twoFactorTries.release(user.id);
+  return null;
+}
+
 const settingsHandlers = {
+  async '/settings/updates/run'(req, res) {
+    if (!readStatus()) return redirect(res, '/settings#updates');
+    requestAction('update');
+    return redirect(res, '/settings?notice=update-started#updates');
+  },
+
+  async '/settings/updates/check'(req, res) {
+    if (!readStatus()) return redirect(res, '/settings#updates');
+    requestAction('check');
+    return redirect(res, '/settings?notice=update-checking#updates');
+  },
+
+  async '/settings/updates/schedule'(req, res, form) {
+    const schedule = form.get('schedule') || '';
+    const hour = Number(form.get('hour'));
+    if (!Object.hasOwn(UPDATE_SCHEDULE_LABELS, schedule) || !Number.isInteger(hour) || hour < 0 || hour > 23) return redirect(res, '/settings#updates');
+    writeSetting.run('update_schedule', schedule);
+    writeSetting.run('update_hour', String(hour));
+    return redirect(res, '/settings?notice=update-schedule-saved#updates');
+  },
+
+  async '/settings/2fa/start'(req, res, form) {
+    const user = sessionUser(req);
+    if (user.totp_secret) return redirect(res, '/settings#two-factor');
+    const address = clientAddress(req);
+    if (!loginTries.reserve(address)) return renderSettings(req, res, 429, { errors: { twoFactorPassword: TOO_MANY_TRIES } });
+    if (!await passwordMatches(form.get('password') || '', user.password_hash)) {
+      return renderSettings(req, res, 400, { errors: { twoFactorPassword: 'That isn\'t your password.' } });
+    }
+    loginTries.clear(address);
+    const secret = generateSecret();
+    enrollments.set(sessionKey(req), { secret });
+    return renderSettings(req, res, 200, { twoFactorSecret: secret });
+  },
+
+  async '/settings/2fa/enable'(req, res, form) {
+    const user = sessionUser(req);
+    const enrollment = enrollments.get(sessionKey(req));
+    if (user.totp_secret) return redirect(res, '/settings#two-factor');
+    if (!enrollment) return redirect(res, '/settings?notice=2fa-expired#two-factor');
+    const { secret } = enrollment;
+    if (!twoFactorTries.reserve(user.id)) {
+      return renderSettings(req, res, 429, { twoFactorSecret: secret, errors: { twoFactorCode: TOO_MANY_TRIES } });
+    }
+    const step = matchingStep(secret, form.get('code') || '');
+    if (step === null) {
+      return renderSettings(req, res, 400, { twoFactorSecret: secret, errors: { twoFactorCode: 'That code isn\'t right. Check your app and try again.' } });
+    }
+    twoFactorTries.release(user.id);
+    enrollments.delete(sessionKey(req));
+    const codes = generateRecoveryCodes();
+    enableTwoFactor(user.id, secret, nowSeconds(), step, codes.map(hashRecoveryCode));
+    deleteOtherSessions.run(user.id, sessionKey(req));
+    return renderSettings(req, res, 200, { recoveryCodes: codes, justEnabled: true });
+  },
+
+  async '/settings/2fa/recovery'(req, res, form) {
+    const user = sessionUser(req);
+    if (!user.totp_secret) return redirect(res, '/settings#two-factor');
+    const refusal = await refuseTwoFactorChange(req, user, form);
+    if (refusal) return renderSettings(req, res, refusal.status, { errors: refusal.errors });
+    const codes = generateRecoveryCodes();
+    replaceRecoveryCodes(user.id, codes.map(hashRecoveryCode));
+    return renderSettings(req, res, 200, { recoveryCodes: codes });
+  },
+
+  async '/settings/2fa/disable'(req, res, form) {
+    const user = sessionUser(req);
+    if (!user.totp_secret) return redirect(res, '/settings#two-factor');
+    const refusal = await refuseTwoFactorChange(req, user, form);
+    if (refusal) return renderSettings(req, res, refusal.status, { errors: refusal.errors });
+    disableTwoFactor(user.id);
+    forgetPendingLogins(user.id);
+    return redirect(res, '/settings?notice=2fa-off#two-factor');
+  },
+
   async '/settings/domains'(req, res, form) {
     const connection = Object.hasOwn(CONNECTION_LABELS, form.get('connection')) ? form.get('connection') : 'direct';
     const https = form.get('https') === '1';
@@ -468,7 +693,8 @@ const settingsHandlers = {
       return renderSettings(req, res, 400, { errors: { password: `Use at least ${MIN_PASSWORD_LENGTH} characters.` } });
     }
     updatePassword.run(await hashPassword(password), user.id);
-    deleteOtherSessions.run(user.id, hashToken(readCookie(req, SESSION_COOKIE)));
+    deleteOtherSessions.run(user.id, sessionKey(req));
+    forgetPendingLogins(user.id);
     return redirect(res, '/settings?notice=password-changed');
   },
 };

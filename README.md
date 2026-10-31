@@ -33,6 +33,10 @@
   - Analytics, per-link stats, CSV export and an API with revocable keys
 - **Admin tools**
   - Search, filters, bulk edit and delete, storage use, and database backups
+- **Two-factor login**
+  - Codes from an authenticator app, with one-time recovery codes
+- **Updates from the browser** (optional)
+  - An update button and a schedule, with automatic rollback if a new version fails to start
 
 <br>
 
@@ -138,6 +142,56 @@ Set these under `environment` in `compose.yaml`:
 
 <br>
 
+## Two-factor login
+
+Turn it on in **Settings > Two-factor login**. Scan the QR code with an authenticator app, enter a code to confirm it, and save the 10 recovery codes it gives you. Each recovery code works once.
+
+An account gets 5 wrong codes before a 15-minute wait. API keys don't use two-factor login, so treat them like passwords.
+
+If you lose both your app and your recovery codes, run this on the server to turn it off, then log in with your password:
+
+```sh
+docker compose exec shortify node src/reset-2fa.js
+```
+
+<br>
+
+## Updates
+
+Without the updater, update from the server:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+To update from **Settings > Updates**, or on a schedule, add the updater to `compose.yaml` under `services`, using the same image as `shortify`:
+
+```yaml
+  updater:
+    image: ghcr.io/t3chiejack/shortify:1
+    command: ["node", "src/updater.js"]
+    restart: unless-stopped
+    user: root
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
+    volumes:
+      - shortify-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+
+Then run `docker compose up -d`. Your Shortify service must be called `shortify`, as in the examples above.
+
+> [!WARNING]
+> The updater needs the Docker socket, and anything with access to that socket can take full control of the server. That's why it's optional and runs apart from Shortify, which never touches the socket. Shortify can only ask the updater to check for or install the image tag you chose. Leave the updater out if you'd rather update by hand.
+
+The updater checks once a day, and only installs when you press **Update now** or set a schedule. If the new version doesn't start and pass its health check, your current version comes back on its own. It stays within the tag you chose, so `:1` never moves to version 2 by itself. It only works with published images, not with `docker compose up --build`.
+
+<br>
+
 ## Limits
 
 - **PINs:** 4 to 12 digits, stored hashed, so they can't be shown again. A visitor gets 5 wrong tries per link, and a link gets 50 in total, before a 15-minute wait.
@@ -202,7 +256,7 @@ Errors come back as `{"error": "What went wrong"}` with a `4xx` status.
 
 Everything is stored in the `shortify-data` volume: the database, shared files and any HTTPS certificate. Back up that volume.
 
-**Settings > Storage and backup** can also download a copy of the database. That copy holds your links, stats, settings, password hash and any tunnel token, so keep it safe. It doesn't include shared files.
+**Settings > Storage and backup** can also download a copy of the database. That copy holds your links, stats, settings, password hash, two-factor key and any tunnel token, so keep it safe. It doesn't include shared files.
 
 To restore a database backup, stop the container, replace `shortify.db` in the volume with the backup, delete any `shortify.db-wal` and `shortify.db-shm` next to it, and start the container again.
 

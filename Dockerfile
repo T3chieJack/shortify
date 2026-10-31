@@ -12,6 +12,7 @@ RUN case "$TARGETARCH" in \
     && chmod 755 /usr/local/bin/cloudflared
 
 WORKDIR /app
+COPY package.json ./
 COPY src ./src
 COPY views ./views
 COPY public ./public

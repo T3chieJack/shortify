@@ -12,10 +12,11 @@ const { routeApi } = require('./routes/api');
 const { handleCreateLink, renderDashboard } = require('./routes/dashboard');
 const { renderLinkPage, sendQrCode } = require('./routes/link');
 const { handleBulkAdd, handleDeleteLinks, handleEditLinks, renderLinks, sendLinksCsv } = require('./routes/links');
-const { handleLogin, handleLogout, prepareLogin, renderLogin } = require('./routes/login');
+const { handleLogin, handleLogout, handleTwoFactorLogin, prepareLogin, renderLogin, renderTwoFactorLogin } = require('./routes/login');
 const { handleSettingsPost, renderSettings, settingsHandlers } = require('./routes/settings');
 const { followLink, handleLinkPin } = require('./routes/visit');
 const { isSetupPending, prepareFirstRun, routeFirstRun } = require('./setup');
+const { startUpdateSchedule } = require('./updates');
 const { ASSETS } = require('./views');
 
 async function route(req, res) {
@@ -34,6 +35,7 @@ async function route(req, res) {
       if (isLoggedIn(req)) return redirect(res, '/dashboard');
       return renderLogin(req, res, 200);
     }
+    if (pathname === '/login/2fa') return renderTwoFactorLogin(req, res);
     if (pathname === '/dashboard') {
       if (!isLoggedIn(req)) return redirect(res, '/');
       const created = findLink.get(new URLSearchParams(query).get('created') || '');
@@ -76,6 +78,7 @@ async function route(req, res) {
 
   if (method === 'POST') {
     if (pathname === '/login') return handleLogin(req, res);
+    if (pathname === '/login/2fa') return handleTwoFactorLogin(req, res);
     if (pathname === '/logout') return handleLogout(req, res);
     if (pathname === '/links') return handleCreateLink(req, res);
     if (pathname === '/links/bulk') return handleBulkAdd(req, res);
@@ -116,6 +119,7 @@ process.on('SIGINT', () => process.exit(0));
   await prepareLogin();
   await prepareFirstRun();
   analytics.startPruning();
+  startUpdateSchedule();
   http.createServer(handleRequest).listen(PORT, () => console.log(`Shortify listening on port ${PORT}`));
   const certificate = readCertificate();
   if (certificate) startHttps(certificate);

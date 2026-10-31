@@ -106,6 +106,11 @@
             {{ https_panel }}
           </section>
 
+          <section class="card" id="updates">
+            <h2>Updates</h2>
+            {{ updates_panel }}
+          </section>
+
           <section class="card" id="storage">
             <h2>Storage and backup</h2>
             <dl class="details">
@@ -116,7 +121,7 @@
               <div class="field">
                 <label for="backup-password">Your password</label>
                 <input id="backup-password" name="password" type="password" autocomplete="current-password" {{ backup_aria }}>
-                <p class="field-hint">The backup holds your links, stats, settings, password hash and any tunnel token, so keep it safe. Shared files aren't in it: back those up with the Docker volume.</p>
+                <p class="field-hint">The backup holds your links, stats, settings, password hash, two-factor key and any tunnel token, so keep it safe. Shared files aren't in it: back those up with the Docker volume.</p>
                 {{ backup_error }}
               </div>
               <button class="button button-small button-quiet" type="submit">Download database backup</button>
@@ -141,6 +146,11 @@
               </div>
               <button class="button button-small" type="submit">Change password</button>
             </form>
+          </section>
+
+          <section class="card" id="two-factor">
+            <h2>Two-factor login</h2>
+            {{ two_factor_panel }}
           </section>
         </div>
       </div>

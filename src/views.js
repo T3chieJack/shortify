@@ -29,6 +29,8 @@ const PIN_PAGE = readView('pin.html');
 
 const SETUP_PAGE = readView('setup.html');
 
+const TWO_FACTOR_PAGE = readView('two-factor.html');
+
 const MESSAGE_PAGE = readView('message.html');
 
 const ANALYTICS_PAGE = readView('analytics.html');
@@ -64,5 +66,6 @@ module.exports = {
   SETUP_PAGE,
   SIDEBAR,
   TEXT_PAGE,
+  TWO_FACTOR_PAGE,
   renderTemplate,
 };

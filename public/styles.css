@@ -1380,6 +1380,53 @@ table,
 
 .settings-form > .check-row { margin-bottom: 0.5rem; }
 
+.qr-image svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.two-factor-card { max-width: 32rem; }
+
+.two-factor-key code {
+  font-family: ui-monospace, Consolas, Menlo, monospace;
+  overflow-wrap: anywhere;
+}
+
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.4rem 1rem;
+  margin: 0 0 1.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-control);
+  list-style: none;
+}
+
+.recovery-codes code {
+  font-family: ui-monospace, Consolas, Menlo, monospace;
+  font-size: 0.9rem;
+}
+
+.login-stack {
+  width: 100%;
+  max-width: 25rem;
+  margin-inline: auto;
+}
+
+.login-intro {
+  margin: 0.4rem 0 1.1rem;
+  color: var(--muted);
+}
+
+.login-recovery,
+.login-back { margin-top: 1.25rem; }
+
+.login-recovery summary { cursor: pointer; }
+
+.login-recovery form { margin-top: 0.9rem; }
+
 .message-page {
   max-width: 32rem;
   margin-inline: auto;

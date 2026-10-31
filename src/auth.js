@@ -61,6 +61,8 @@ function createTryLimiter(maxTries) {
 
 const loginTries = createTryLimiter(MAX_FAILED_LOGINS);
 
+const twoFactorTries = createTryLimiter(MAX_FAILED_LOGINS);
+
 const pinTriesByVisitor = createTryLimiter(MAX_PIN_TRIES_PER_VISITOR);
 
 const pinTriesByLink = createTryLimiter(MAX_PIN_TRIES_PER_LINK);
@@ -187,4 +189,5 @@ module.exports = {
   sessionUser,
   setTrustedProxies,
   startSession,
+  twoFactorTries,
 };

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <title>Enter your code - Shortify</title>
+</head>
+<body>
+  <div class="page">
+    <header class="brand">
+      {{ wordmark }}
+    </header>
+
+    <main class="login">
+      <div class="login-stack">
+      <form class="login-form" method="post" action="/login/2fa">
+        <h1>Enter your code</h1>
+        <p class="login-intro">Open your authenticator app and enter the 6-digit code for Shortify.</p>
+
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        {{ message }}
+
+        <div class="field">
+          <label for="code">Code</label>
+          <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" autofocus required {{ code_aria }}>
+        </div>
+
+        <button class="button" type="submit"><span class="button-label">Log in</span></button>
+      </form>
+
+      <details class="login-recovery">
+        <summary>Use a recovery code</summary>
+        <form method="post" action="/login/2fa">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field">
+            <label for="recovery-code">Recovery code</label>
+            <input id="recovery-code" name="code" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="24" required>
+            <p class="field-hint">Each recovery code works once.</p>
+          </div>
+          <button class="button button-small button-quiet" type="submit">Log in with recovery code</button>
+        </form>
+      </details>
+
+      <p class="login-back"><a href="/">Back to log in</a></p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

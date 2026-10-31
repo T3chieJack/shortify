@@ -103,16 +103,90 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS link_tags_tag ON link_tags (tag);
 `);
 
+if (!db.prepare('PRAGMA table_info(users)').all().some((column) => column.name === 'totp_secret')) {
+  db.exec(`
+    BEGIN;
+    ALTER TABLE users ADD COLUMN totp_secret TEXT;
+    ALTER TABLE users ADD COLUMN totp_enabled_at INTEGER;
+    ALTER TABLE users ADD COLUMN totp_last_step INTEGER;
+    COMMIT;
+  `);
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS recovery_codes (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    PRIMARY KEY (user_id, code_hash)
+  );
+`);
+
 const countUsers = db.prepare('SELECT COUNT(*) AS count FROM users');
 
 const insertUser = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
 
-const findUser = db.prepare('SELECT id, password_hash FROM users WHERE username = ?');
+const findUser = db.prepare('SELECT id, password_hash, totp_secret FROM users WHERE username = ?');
+
+const findUserById = db.prepare('SELECT id, totp_secret FROM users WHERE id = ?');
+
+const recordTotpStep = db.prepare('UPDATE users SET totp_last_step = ? WHERE id = ? AND (totp_last_step IS NULL OR totp_last_step < ?)');
+
+const insertRecoveryCode = db.prepare('INSERT INTO recovery_codes (user_id, code_hash) VALUES (?, ?)');
+
+const deleteRecoveryCode = db.prepare('DELETE FROM recovery_codes WHERE user_id = ? AND code_hash = ?');
+
+const deleteRecoveryCodes = db.prepare('DELETE FROM recovery_codes WHERE user_id = ?');
+
+const countRecoveryCodes = db.prepare('SELECT COUNT(*) AS count FROM recovery_codes WHERE user_id = ?');
+
+const updateTwoFactor = db.prepare('UPDATE users SET totp_secret = ?, totp_enabled_at = ?, totp_last_step = ? WHERE id = ?');
+
+function inTransaction(work) {
+  db.exec('BEGIN');
+  try {
+    work();
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+function replaceRecoveryCodes(userId, codeHashes) {
+  inTransaction(() => {
+    deleteRecoveryCodes.run(userId);
+    for (const codeHash of codeHashes) insertRecoveryCode.run(userId, codeHash);
+  });
+}
+
+function enableTwoFactor(userId, secret, enabledAt, lastStep, codeHashes) {
+  inTransaction(() => {
+    updateTwoFactor.run(secret, enabledAt, lastStep, userId);
+    deleteRecoveryCodes.run(userId);
+    for (const codeHash of codeHashes) insertRecoveryCode.run(userId, codeHash);
+  });
+}
+
+function disableTwoFactor(userId) {
+  inTransaction(() => {
+    updateTwoFactor.run(null, null, null, userId);
+    deleteRecoveryCodes.run(userId);
+  });
+}
+
+function clearAllTwoFactor() {
+  db.exec(`
+    BEGIN;
+    UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL;
+    DELETE FROM recovery_codes;
+    COMMIT;
+  `);
+}
 
 const insertSession = db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)');
 
 const findSessionUser = db.prepare(`
-  SELECT users.id, users.username, users.password_hash FROM sessions JOIN users ON users.id = sessions.user_id
+  SELECT users.id, users.username, users.password_hash, users.totp_secret, users.totp_enabled_at FROM sessions JOIN users ON users.id = sessions.user_id
   WHERE sessions.token_hash = ? AND sessions.expires_at > ?
 `);
 
@@ -292,6 +366,7 @@ module.exports = {
   TLS_CERT_PATH,
   TLS_KEY_PATH,
   analytics,
+  clearAllTwoFactor,
   clicksByDay,
   consumeUse,
   countClicks,
@@ -299,6 +374,7 @@ module.exports = {
   countFilteredLinks,
   countLinks,
   countLinksSince,
+  countRecoveryCodes,
   countUsers,
   db,
   defaultDomainId,
@@ -307,8 +383,11 @@ module.exports = {
   deleteExpiredSessions,
   deleteLink,
   deleteOtherSessions,
+  deleteRecoveryCode,
   deleteSession,
   deleteTag,
+  disableTwoFactor,
+  enableTwoFactor,
   exportLinks,
   findApiKey,
   findDomain,
@@ -318,6 +397,7 @@ module.exports = {
   findLinkText,
   findSessionUser,
   findUser,
+  findUserById,
   getSetting,
   insertApiKey,
   insertDomain,
@@ -333,7 +413,9 @@ module.exports = {
   recentLinks,
   recordClick,
   recordDomainCheck,
+  recordTotpStep,
   removeSetting,
+  replaceRecoveryCodes,
   storageTotals,
   topLinks,
   touchApiKey,

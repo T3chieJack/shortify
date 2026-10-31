@@ -6,7 +6,6 @@ node_modules/
 *.pem
 .env
 .env.*
-.claude/
 .vscode/
 .DS_Store
 Thumbs.db

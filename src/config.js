@@ -20,6 +20,36 @@ const SESSION_COOKIE = 'shortify_session';
 
 const CSRF_COOKIE = 'shortify_csrf';
 
+const TWO_FACTOR_COOKIE = 'shortify_2fa';
+
+const PENDING_LOGIN_MS = 5 * 60 * 1000;
+
+const ENROLLMENT_MS = 15 * 60 * 1000;
+
+const TOTP_DIGITS = 6;
+
+const TOTP_STEP_SECONDS = 30;
+
+const TOTP_DRIFT_STEPS = 1;
+
+const RECOVERY_CODE_COUNT = 10;
+
+const APP_VERSION = require('../package.json').version;
+
+const UPDATER_DIR = path.join(DATA_DIR, 'updater');
+
+const UPDATE_REQUEST_FILE = 'request.json';
+
+const UPDATE_STATUS_FILE = 'status.json';
+
+const UPDATER_HEARTBEAT_MS = 10 * 1000;
+
+const UPDATER_STALE_MS = 60 * 1000;
+
+const UPDATE_SCHEDULE_LABELS = { '': 'Off', daily: 'Every day', weekly: 'Every Sunday' };
+
+const UPDATE_WEEKLY_DAY = 'Sun';
+
 const DAY_SECONDS = 24 * 60 * 60;
 
 const SESSION_SECONDS = DAY_SECONDS;
@@ -118,6 +148,11 @@ const SETTINGS_NOTICES = {
   'tunnel-removed': 'Tunnel disconnected and its token removed.',
   'proxies-saved': 'Reverse proxy addresses saved.',
   'password-changed': 'Password changed. Other devices have been logged out.',
+  '2fa-expired': 'Setup took too long, so nothing changed. Start again.',
+  '2fa-off': 'Two-factor login turned off.',
+  'update-started': 'Update started. Shortify will restart when it has downloaded the new version, so reload this page in a minute or two.',
+  'update-checking': 'Checking for updates. Reload this page in a moment.',
+  'update-schedule-saved': 'Update schedule saved.',
   'advanced-saved': 'Advanced mode settings saved.',
   'stats-cleared': 'Detailed stats deleted.',
   'key-removed': 'API key revoked. Anything using it has stopped working.',
@@ -151,6 +186,7 @@ module.exports = {
   MAX_MISSED_LINKS,
   ADMIN_USERNAME,
   API_PAGE_SIZE,
+  APP_VERSION,
   CHART_DAYS,
   CHART_HEIGHT,
   CHART_PLOT_HEIGHT,
@@ -161,6 +197,7 @@ module.exports = {
   DATA_DIR,
   DAY_SECONDS,
   DOMAIN_CHECK_TIMEOUT_MS,
+  ENROLLMENT_MS,
   EXPIRY_LABELS,
   EXPIRY_PRESETS,
   HEATMAP_ROW_HEIGHT,
@@ -191,12 +228,14 @@ module.exports = {
   MAX_URL_LENGTH,
   MIN_PASSWORD_LENGTH,
   PAGE_EXPIRED,
+  PENDING_LOGIN_MS,
   PIN_ERROR,
   PIN_PATTERN,
   PORT,
   RANGE_DAYS,
   RECENT_LINKS,
   RECENT_VISITS,
+  RECOVERY_CODE_COUNT,
   REMEMBER_SECONDS,
   RESERVED_SLUGS,
   RETENTION_LABELS,
@@ -212,6 +251,17 @@ module.exports = {
   STATE_LABELS,
   TAG_PATTERN,
   TOP_LINKS,
+  TOTP_DIGITS,
+  TOTP_DRIFT_STEPS,
+  TOTP_STEP_SECONDS,
+  TWO_FACTOR_COOKIE,
+  UPDATER_DIR,
+  UPDATER_HEARTBEAT_MS,
+  UPDATER_STALE_MS,
+  UPDATE_REQUEST_FILE,
+  UPDATE_SCHEDULE_LABELS,
+  UPDATE_STATUS_FILE,
+  UPDATE_WEEKLY_DAY,
   USERNAME_PATTERN,
   WEEKDAYS,
 };

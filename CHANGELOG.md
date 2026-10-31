@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- Two-factor login with an authenticator app, recovery codes, and a server command to turn it off if you're locked out
+- An optional updater container, which adds an update button and a schedule to Settings, and rolls back if a new version fails to start
+- Settings now shows which version you're running
+
 ## 1.0.1
 
 - The container image is now also published to Docker Hub as `techiejack/shortify`
