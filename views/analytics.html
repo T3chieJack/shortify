@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <title>Analytics - Shortify</title>
+  <script src="/charts.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    {{ sidebar }}
+
+    <main class="main">
+      <div class="page-head">
+        <h1>Analytics</h1>
+        <div class="page-actions">
+          <form class="range-form" method="get" action="/analytics">
+            <label class="visually-hidden" for="range">Time range</label>
+            <select id="range" name="range" data-auto-submit>{{ range_options }}</select>
+            <noscript><button class="button button-small button-quiet" type="submit">Apply</button></noscript>
+          </form>
+          <a class="button button-small button-quiet" href="/analytics/export?range={{ range }}">Export CSV</a>
+        </div>
+      </div>
+
+      <div class="analytics">
+        <section class="card card-clicks" aria-label="Summary">
+          <dl class="stats stats-many">
+            {{ stats }}
+          </dl>
+          <div class="chart-section">
+            <div class="card-head">
+              <h2>Clicks per day</h2>
+              <p class="card-meta">{{ range_label }}, {{ time_zone }}</p>
+            </div>
+            {{ day_chart }}
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Busiest times</h2>
+            <p class="card-meta">{{ time_zone }}</p>
+          </div>
+          {{ heatmap }}
+        </section>
+
+        <section class="card">
+          <h2>Recent visits</h2>
+          {{ recent_visits }}
+        </section>
+
+        <div class="breakdowns">
+          {{ breakdowns }}
+        </div>
+
+        <p class="analytics-note">People and bots are counted apart, and these numbers show people only. Visitors are counted per day, so one person visiting on 3 days counts as 3. Only clicks since advanced mode was switched on are here, kept for {{ retention_days }} days.</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

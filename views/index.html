@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <title>Log in to Shortify</title>
+  <script src="/login.js" defer></script>
+</head>
+<body>
+  <div class="page">
+    <header class="brand">
+      {{ wordmark }}
+
+      <p class="tagline">Long links, made short, on your own server.</p>
+    </header>
+
+    <main class="login">
+      <form class="login-form" id="login-form" method="post" action="/login">
+        <h1>Log in</h1>
+
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="messages">
+          <div role="alert">
+            <p class="msg msg-alert" id="msg-error" data-msg="error" hidden>That username and password don't match. Check them and try again.</p>
+            <p class="msg msg-alert" id="msg-locked" data-msg="locked" hidden>Too many login attempts. Wait 15 minutes, then try again.</p>
+            <p class="msg msg-alert" id="msg-offline" data-msg="offline" hidden>Can't reach the server. Check your connection and try again.</p>
+          </div>
+          <div role="status">
+            <p class="visually-hidden" data-msg="loading" hidden>Logging in</p>
+            <p class="msg" data-msg="success" hidden>Logged in. Opening your dashboard.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+          <p class="field-error" id="username-error" hidden>Enter your username.</p>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+            <button class="toggle" id="password-toggle" type="button" aria-controls="password" aria-label="Show password" hidden>Show</button>
+          </div>
+          <p class="field-error" id="password-error" hidden>Enter your password.</p>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" name="remember" value="1">
+          <span>Remember me on this device</span>
+        </label>
+
+        <button class="button" id="submit" type="submit" data-label-loading="Logging in" data-label-success="Logged in">
+          <span class="button-label">Log in</span>
+          <span class="slashes" aria-hidden="true" hidden><i></i><i></i><i></i></span>
+        </button>
+      </form>
+    </main>
+  </div>
+</body>
+</html>

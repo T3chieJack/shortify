@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <title>Settings - Shortify</title>
+</head>
+<body>
+  <div class="app">
+    {{ sidebar }}
+
+    <main class="main">
+      <div class="page-head">
+        <h1>Settings</h1>
+      </div>
+
+      {{ notice }}
+      {{ confirm }}
+
+      <div class="columns" {{ page_hidden }}>
+        <div class="column column-main">
+          <section class="card" id="domains">
+            <h2>Domains</h2>
+            <p class="card-intro">Choose one of these when you create a link. An ending works on every domain here, so moving a link to another domain doesn't break its old address.</p>
+            {{ domain_list }}
+
+            <form class="settings-form" method="post" action="/settings/domains">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <h3>Add a domain</h3>
+              <div class="settings-row">
+                <div class="field">
+                  <label for="hostname">Domain</label>
+                  <input id="hostname" name="hostname" type="text" value="{{ hostname }}" placeholder="s.example.com" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" {{ hostname_aria }}>
+                  {{ hostname_error }}
+                </div>
+                <div class="field">
+                  <label for="connection">Connected through</label>
+                  <select id="connection" name="connection">{{ connection_options }}</select>
+                </div>
+              </div>
+              <label class="check-row">
+                <input type="checkbox" name="https" value="1" {{ https_checked }}>
+                <span>Links on this domain use HTTPS</span>
+              </label>
+              <button class="button button-small" type="submit">Add domain</button>
+            </form>
+          </section>
+
+          <section class="card" id="advanced">
+            <h2>Advanced mode</h2>
+            <p class="card-intro">Adds an Analytics page and detail on each link: where visitors come from, their devices, countries, languages, busiest times and more. Counting starts when you turn it on.</p>
+            <form class="settings-form" method="post" action="/settings/advanced">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <label class="check-row">
+                <input type="checkbox" name="enabled" value="1" {{ advanced_checked }}>
+                <span>Turn on advanced mode</span>
+              </label>
+              <div class="settings-row">
+                <div class="field">
+                  <label for="time-zone">Time zone for stats</label>
+                  <input id="time-zone" name="time_zone" type="text" value="{{ time_zone }}" autocomplete="off" autocapitalize="none" spellcheck="false" {{ time_zone_aria }}>
+                  <p class="field-hint">Like Europe/London or America/New_York.</p>
+                  {{ time_zone_error }}
+                </div>
+                <div class="field">
+                  <label for="retention">Keep detail for</label>
+                  <select id="retention" name="retention">{{ retention_options }}</select>
+                </div>
+              </div>
+              <button class="button button-small" type="submit">Save</button>
+            </form>
+            <div class="card-section">
+              <h3>What gets recorded</h3>
+              <p>For each visit: the time, the link, the referring site's name, the browser, device, operating system and language. The country too, if Cloudflare or your proxy provides it. IP addresses are not stored. Visitors are counted with a code that changes daily, so nobody can be followed from one day to the next.</p>
+              <p>If people outside your household use your links, check whether privacy rules where you live ask you to tell them.</p>
+              <form method="post" action="/settings/advanced/clear">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="button-text button-text-danger" type="submit">Delete detailed stats</button>
+              </form>
+            </div>
+            {{ api_section }}
+          </section>
+
+          <section class="card" id="proxy">
+            <h2>Your own reverse proxy</h2>
+            <p class="card-intro">If Caddy, Nginx or similar sits in front of Shortify, list its address so Shortify can see each visitor's real address and whether they used HTTPS. Limits on login and PIN tries rely on this. Only list proxies you run: anything listed here is believed about who is visiting.</p>
+            <form class="settings-form" method="post" action="/settings/proxy">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <div class="field">
+                <label for="proxies">Proxy IP addresses, one per line</label>
+                <textarea id="proxies" name="proxies" rows="3" autocomplete="off" spellcheck="false" {{ proxies_aria }}>{{ proxies }}</textarea>
+                {{ proxies_error }}
+              </div>
+              <button class="button button-small" type="submit">Save proxies</button>
+            </form>
+          </section>
+        </div>
+
+        <div class="column column-side">
+          <section class="card" id="tunnel">
+            <h2>Cloudflare Tunnel</h2>
+            {{ tunnel_panel }}
+          </section>
+
+          <section class="card" id="https">
+            <h2>HTTPS</h2>
+            {{ https_panel }}
+          </section>
+
+          <section class="card" id="storage">
+            <h2>Storage and backup</h2>
+            <dl class="details">
+              {{ storage }}
+            </dl>
+            <form class="backup-form" method="post" action="/settings/backup">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <div class="field">
+                <label for="backup-password">Your password</label>
+                <input id="backup-password" name="password" type="password" autocomplete="current-password" {{ backup_aria }}>
+                <p class="field-hint">The backup holds your links, stats, settings, password hash and any tunnel token, so keep it safe. Shared files aren't in it: back those up with the Docker volume.</p>
+                {{ backup_error }}
+              </div>
+              <button class="button button-small button-quiet" type="submit">Download database backup</button>
+            </form>
+          </section>
+
+          <section class="card" id="account">
+            <h2>Change password</h2>
+            <form method="post" action="/settings/password">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input class="visually-hidden" type="text" name="username" value="{{ username }}" autocomplete="username" tabindex="-1" aria-hidden="true">
+              <div class="field">
+                <label for="current-password">Current password</label>
+                <input id="current-password" name="current" type="password" autocomplete="current-password" {{ current_aria }}>
+                {{ current_error }}
+              </div>
+              <div class="field">
+                <label for="new-password">New password</label>
+                <input id="new-password" name="password" type="password" autocomplete="new-password" {{ password_aria }}>
+                <p class="field-hint">At least 12 characters. Logs you out everywhere else.</p>
+                {{ password_error }}
+              </div>
+              <button class="button button-small" type="submit">Change password</button>
+            </form>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

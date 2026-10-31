@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <title>Dashboard - Shortify</title>
+  <script src="/dashboard.js" defer></script>
+  <script src="/charts.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    {{ sidebar }}
+
+    <main class="main">
+      <h1>Dashboard</h1>
+
+      <div class="columns dashboard-columns">
+        <div class="column column-side">
+          <section class="card card-create">
+            <h2>Create a short link</h2>
+            <form class="create" method="post" action="/links" enctype="multipart/form-data" data-max-bytes="{{ max_upload_bytes }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+              <fieldset class="kinds">
+                <legend class="visually-hidden">What to share</legend>
+                <label class="kind"><input type="radio" name="kind" value="url" {{ kind_url }}><span>Link</span></label>
+                <label class="kind"><input type="radio" name="kind" value="text" {{ kind_text }}><span>Text</span></label>
+                <label class="kind"><input type="radio" name="kind" value="file" {{ kind_file }}><span>File</span></label>
+              </fieldset>
+
+              <div class="field kind-url">
+                <label for="url">Long link</label>
+                <input id="url" name="url" type="text" inputmode="url" value="{{ url }}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus {{ url_aria }}>
+                {{ url_error }}
+              </div>
+
+              <div class="field kind-text">
+                <label for="text">Text</label>
+                <textarea id="text" name="text" rows="6" spellcheck="false" {{ text_aria }}>{{ text }}</textarea>
+                <p class="field-hint">Anyone with the short link can read it.</p>
+                {{ text_error }}
+              </div>
+
+              <div class="field kind-file">
+                <label for="file">File</label>
+                <input id="file" name="file" type="file" {{ file_aria }}>
+                <p class="field-hint">Up to {{ max_upload_mb }} MB. Anyone with the short link can download it.</p>
+                <p class="field-error" id="file-too-big" hidden>That file is too big. The limit is {{ max_upload_mb }} MB.</p>
+                {{ file_error }}
+              </div>
+
+              <div class="field">
+                <label for="slug">Custom ending (optional)</label>
+                <div class="slug-wrap">
+                  {{ slug_prefix }}
+                  <input id="slug" name="slug" type="text" value="{{ slug }}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="64" {{ slug_aria }}>
+                </div>
+                {{ slug_error }}
+              </div>
+
+              <details class="more-options" {{ more_open }}>
+                <summary>More options</summary>
+                <div class="field">
+                  <label for="pin">PIN</label>
+                  <input id="pin" name="pin" type="text" inputmode="numeric" value="{{ pin }}" autocomplete="off" maxlength="12" {{ pin_aria }}>
+                  <p class="field-hint">4 to 12 digits. Visitors must enter it to open this link. It can't be shown again.</p>
+                  {{ pin_error }}
+                </div>
+                {{ expiry_field }}
+                <div class="field">
+                  <label for="limit">Click limit</label>
+                  <input id="limit" name="limit" type="text" inputmode="numeric" value="{{ limit }}" autocomplete="off" {{ limit_aria }}>
+                  <p class="field-hint">The link stops working after this many opens. Enter 1 for a one-time link.</p>
+                  {{ limit_error }}
+                </div>
+                <div class="field">
+                  <label for="tags">Tags</label>
+                  <input id="tags" name="tags" type="text" value="{{ tags }}" autocomplete="off" autocapitalize="none" spellcheck="false" {{ tags_aria }}>
+                  <p class="field-hint">To organise your links. Separate them with commas or spaces.</p>
+                  {{ tags_error }}
+                </div>
+              </details>
+
+              <button class="button" id="create-submit" type="submit">Create short link</button>
+            </form>
+
+            {{ created }}
+          </section>
+
+          <section class="card card-top">
+            <h2>Top links</h2>
+            {{ top_links }}
+          </section>
+        </div>
+
+        <div class="column column-main">
+          <section class="card card-clicks" aria-label="Clicks">
+            <dl class="stats">
+              <div class="stat">
+                <dt>Clicks today</dt>
+                <dd class="stat-value">{{ stat_today }}</dd>
+                <dd class="stat-note">{{ stat_today_note }}</dd>
+              </div>
+              <div class="stat">
+                <dt>Last 7 days</dt>
+                <dd class="stat-value">{{ stat_week }}</dd>
+                <dd class="stat-note">{{ stat_week_note }}</dd>
+              </div>
+              <div class="stat">
+                <dt>All clicks</dt>
+                <dd class="stat-value">{{ stat_clicks }}</dd>
+                <dd class="stat-note">{{ stat_clicks_note }}</dd>
+              </div>
+              <div class="stat">
+                <dt>Short links</dt>
+                <dd class="stat-value">{{ stat_links }}</dd>
+                <dd class="stat-note">{{ stat_links_note }}</dd>
+              </div>
+            </dl>
+
+            <div class="chart-section">
+              <div class="card-head">
+                <h2>Clicks per day</h2>
+                <p class="card-meta">Last {{ chart_days }} days</p>
+              </div>
+              {{ clicks_chart }}
+            </div>
+          </section>
+
+          <section class="card card-recent">
+            <div class="card-head">
+              <h2>Recent links</h2>
+              <a class="card-link" href="/links">View all links</a>
+            </div>
+            {{ recent_links }}
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

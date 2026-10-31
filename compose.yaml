@@ -1,0 +1,22 @@
+services:
+  shortify:
+    build: .
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:8080"
+      - "443:8443"
+    environment:
+      SHORTIFY_SECURE_COOKIES: "0"
+      SHORTIFY_MAX_UPLOAD_MB: "100"
+    volumes:
+      - shortify-data:/data
+
+volumes:
+  shortify-data:

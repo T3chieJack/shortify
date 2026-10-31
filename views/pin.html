@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <meta name="robots" content="noindex">
+  <title>Enter the PIN - Shortify</title>
+</head>
+<body>
+  <header class="share-bar">
+    {{ wordmark }}
+  </header>
+
+  <main class="pin-page">
+    <form class="card pin-form" method="post">
+      <h1>Enter the PIN</h1>
+      <p class="pin-intro">This link is protected. Ask the person who shared it for the PIN.</p>
+      <div class="field">
+        <label for="pin">PIN</label>
+        <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" autofocus required {{ pin_aria }}>
+        {{ pin_error }}
+      </div>
+      <button class="button" type="submit">Open link</button>
+    </form>
+  </main>
+</body>
+</html>

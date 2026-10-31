@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <meta name="robots" content="noindex">
+  <title>Set up Shortify</title>
+</head>
+<body>
+  <div class="page">
+    <header class="brand">
+      {{ wordmark }}
+      <p class="tagline">Long links, made short, on your own server.</p>
+    </header>
+
+    <main class="login">
+      <form class="login-form setup-form" method="post" action="/setup">
+        <h1>Create your account</h1>
+        <p class="setup-intro">This is the only account, and it runs everything. Nobody can reset it for you, so keep the password safe.</p>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="field">
+          <label for="code">Setup code</label>
+          <input id="code" name="code" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus required {{ code_aria }}>
+          <p class="field-hint">Run <code>docker compose logs</code> on the server and copy it from there. It proves this is your server.</p>
+          {{ code_error }}
+        </div>
+
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" value="{{ username }}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="64" required {{ username_aria }}>
+          {{ username_error }}
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" required {{ password_aria }}>
+          <p class="field-hint">At least 12 characters.</p>
+          {{ password_error }}
+        </div>
+
+        <div class="field">
+          <label for="repeat">Repeat password</label>
+          <input id="repeat" name="repeat" type="password" autocomplete="new-password" required {{ repeat_aria }}>
+          {{ repeat_error }}
+        </div>
+
+        <button class="button" type="submit">Create account</button>
+      </form>
+    </main>
+  </div>
+</body>
+</html>

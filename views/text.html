@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <title>Shared text - Shortify</title>
+  <script src="/text.js" defer></script>
+</head>
+<body>
+  <header class="share-bar">
+    {{ wordmark }}
+  </header>
+
+  <main class="share">
+    <section class="card">
+      <div class="card-head">
+        <h1>Shared text</h1>
+        <button class="copy-text" id="copy-text" type="button" hidden>Copy</button>
+      </div>
+      <pre class="shared-text" id="shared-text">{{ text }}</pre>
+    </section>
+  </main>
+</body>
+</html>

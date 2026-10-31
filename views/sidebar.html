@@ -1,0 +1,18 @@
+<header class="sidebar">
+      {{ wordmark }}
+
+      <nav class="nav" aria-label="Main">
+        <a class="nav-item" href="/dashboard" {{ nav_dashboard }}>Dashboard</a>
+        <a class="nav-item" href="/links" {{ nav_links }}>Links</a>
+        {{ nav_analytics }}
+        <a class="nav-item" href="/settings" {{ nav_settings }}>Settings</a>
+      </nav>
+
+      <div class="account">
+        <p class="account-name">{{ username }}</p>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="logout-button" type="submit">Log out</button>
+        </form>
+      </div>
+    </header>

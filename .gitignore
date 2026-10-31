@@ -1,0 +1,12 @@
+data/
+node_modules/
+*.db
+*.db-shm
+*.db-wal
+*.pem
+.env
+.env.*
+.claude/
+.vscode/
+.DS_Store
+Thumbs.db

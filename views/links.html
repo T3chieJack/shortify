@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {{ head }}
+  <title>Links - Shortify</title>
+  <script src="/links.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    {{ sidebar }}
+
+    <main class="main">
+      <div class="page-head">
+        <h1>Links</h1>
+        <div class="page-actions">
+          <a class="button button-small button-quiet" href="/links/export?{{ export_query }}">Export CSV</a>
+          <a class="button button-small" href="/dashboard">Create a short link</a>
+        </div>
+      </div>
+
+      {{ notice }}
+      {{ confirm }}
+
+      <div class="links-page" {{ list_hidden }}>
+        <details class="card add-many" {{ add_open }}>
+          <summary>Add many links</summary>
+          <form method="post" action="/links/bulk">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="field">
+              <label for="bulk-urls">Long links, one per line</label>
+              <textarea id="bulk-urls" name="urls" rows="6" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" {{ bulk_aria }}>{{ bulk_urls }}</textarea>
+              <p class="field-hint">Up to {{ max_bulk_lines }} at a time, on your default domain. Each gets a random ending, or add your own after a space: <code>example.com/notes notes</code></p>
+              {{ bulk_error }}
+            </div>
+            <button class="button button-small" type="submit">Add links</button>
+          </form>
+        </details>
+
+        <form class="toolbar" method="get" action="/links" role="search">
+          <div class="toolbar-search">
+            <label class="visually-hidden" for="q">Search links</label>
+            <input id="q" name="q" type="search" value="{{ q }}" placeholder="Search endings, addresses, text and file names" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label class="visually-hidden" for="kind">Type</label>
+            <select id="kind" name="kind" data-auto-submit>{{ kind_options }}</select>
+          </div>
+          <div>
+            <label class="visually-hidden" for="sort">Sort by</label>
+            <select id="sort" name="sort" data-auto-submit>{{ sort_options }}</select>
+          </div>
+          <div>
+            <label class="visually-hidden" for="state">Status</label>
+            <select id="state" name="state" data-auto-submit>{{ state_options }}</select>
+          </div>
+          {{ tag_filter }}
+          <button class="button button-small button-quiet" type="submit">Search</button>
+        </form>
+
+        <form class="card links-card" method="post" action="/links/delete">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="return" value="{{ return_query }}">
+
+          <div class="bulk-bar">
+            <p id="selected-count" aria-live="polite">{{ result_count }}</p>
+            <div class="bulk-actions">
+              <button class="button-text" id="bulk-copy" type="button" hidden>Copy links</button>
+              <button class="button-text" id="bulk-edit" type="submit" formaction="/links/edit">Edit selected</button>
+              <button class="button-text button-text-danger" id="bulk-delete" type="submit">Delete selected</button>
+            </div>
+          </div>
+
+          {{ table }}
+          {{ pagination }}
+        </form>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
